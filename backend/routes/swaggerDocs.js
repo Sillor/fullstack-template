@@ -33,24 +33,31 @@ const swaggerOptions = {
             schemas: {
                 User: {
                     type: "object",
-                    required: ["username", "password"],
+                    required: ["username", "password", "email"],
                     properties: {
                         username: {
                             type: "string",
-                            description: "Unique username",
+                            description: "Unique username containing only alphanumeric characters.",
+                            minLength: 5,
+                            maxLength: 30,
+                            example: "john_doe123",
                         },
                         email: {
                             type: "string",
-                            description: "User's email",
+                            description: "A valid email address.",
+                            format: "email",
+                            example: "john.doe@example.com",
                         },
                         password: {
                             type: "string",
-                            description: "User's password",
+                            description: "A strong password with at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.",
+                            pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])[A-Za-z\\d@$!%*?&#]{8,}$",
+                            example: "StrongP@ssw0rd!",
                         },
                     },
                 },
             },
-        },
+        }
     },
     apis: ["./routes/**/*.js"],
 };
