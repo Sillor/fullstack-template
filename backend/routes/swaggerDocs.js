@@ -1,6 +1,9 @@
 const express = require("express");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsDoc = require("swagger-jsdoc");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -9,17 +12,13 @@ const swaggerOptions = {
     swaggerDefinition: {
         openapi: "3.0.0",
         info: {
-            title: "User Authentication API",
+            title: "Template API",
             version: "1.0.0",
-            description: "API documentation for user registration, login, and profile access.",
-            contact: {
-                name: "Developer Support",
-                email: "support@example.com",
-            },
+            description: "API documentation for the template backend server.",
         },
         servers: [
             {
-                url: "http://localhost:3100/api",
+                url: `http://localhost:${process.env.PORT}/api`,
                 description: "Development server",
             },
         ],
