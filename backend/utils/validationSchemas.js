@@ -1,84 +1,78 @@
 const Joi = require('joi');
 
-const registerSchema = Joi.object({
-    username: Joi.string()
+// Constants for common patterns and messages
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+const messages = {
+    alphanum: 'Username must only contain alphanumeric characters.',
+    minLength: (field, min) => `${field} must be at least ${min} characters long.`,
+    maxLength: (field, max) => `${field} must not exceed ${max} characters.`,
+    required: (field) => `${field} is required.`,
+    validEmail: 'Email must be a valid email address.',
+    passwordStrength: 'Password must include at least one uppercase letter, one lowercase letter, one number, and one special character.',
+};
+
+// Helper to generate Joi field validation with consistent messaging
+const usernameField = (min, max) =>
+    Joi.string()
         .alphanum()
-        .min(5)
-        .max(30)
+        .min(min)
+        .max(max)
         .required()
         .messages({
-            'string.alphanum': 'Username must only contain alphanumeric characters.',
-            'string.min': 'Username must be at least 5 characters long.',
-            'string.max': 'Username must not exceed 30 characters.',
-            'any.required': 'Username is required.'
-        }),
-    password: Joi.string()
+            'string.alphanum': messages.alphanum,
+            'string.min': messages.minLength('Username', min),
+            'string.max': messages.maxLength('Username', max),
+            'any.required': messages.required('Username'),
+        });
+
+const passwordField = (fieldName = 'Password') =>
+    Joi.string()
         .min(8)
-        .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])[A-Za-z\\d@$!%*?&#]{8,}$'))
+        .pattern(passwordPattern)
         .required()
         .messages({
-            'string.min': 'Password must be at least 8 characters long.',
-            'string.pattern.base': 'Password must include at least one uppercase letter, one lowercase letter, one number, and one special character.',
-            'any.required': 'Password is required.'
-        }),
-    email: Joi.string()
+            'string.min': messages.minLength(fieldName, 8),
+            'string.pattern.base': messages.passwordStrength,
+            'any.required': messages.required(fieldName),
+        });
+
+const emailField = () =>
+    Joi.string()
         .email()
         .required()
         .messages({
-            'string.email': 'Email must be a valid email address.',
-            'any.required': 'Email is required.'
-        })
+            'string.email': messages.validEmail,
+            'any.required': messages.required('Email'),
+        });
+
+// Schemas
+const registerSchema = Joi.object({
+    username: usernameField(5, 30),
+    password: passwordField(),
+    email: emailField(),
 });
 
 const loginSchema = Joi.object({
-    username: Joi.string()
-        .alphanum()
-        .min(3)
-        .max(30)
-        .required()
-        .messages({
-            'string.alphanum': 'Username must only contain alphanumeric characters.',
-            'string.min': 'Username must be at least 3 characters long.',
-            'string.max': 'Username must not exceed 30 characters.',
-            'any.required': 'Username is required.'
-        }),
-    password: Joi.string()
-        .required()
-        .messages({
-            'any.required': 'Password is required.'
-        })
+    username: usernameField(3, 30),
+    password: Joi.string().required().messages({
+        'any.required': messages.required('Password'),
+    }),
 });
 
 const resetPasswordSchema = Joi.object({
-    email: Joi.string()
-        .email()
-        .required()
-        .messages({
-            'string.email': 'Email must be a valid email address.',
-            'any.required': 'Email is required.'
-        })
+    email: emailField(),
 });
 
 const newPasswordSchema = Joi.object({
-    token: Joi.string()
-        .required()
-        .messages({
-            'any.required': 'Token is required.'
-        }),
-    newPassword: Joi.string()
-        .min(8)
-        .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])[A-Za-z\\d@$!%*?&#]{8,}$'))
-        .required()
-        .messages({
-            'string.min': 'New password must be at least 8 characters long.',
-            'string.pattern.base': 'New password must include at least one uppercase letter, one lowercase letter, one number, and one special character.',
-            'any.required': 'New password is required.'
-        })
+    token: Joi.string().required().messages({
+        'any.required': messages.required('Token'),
+    }),
+    newPassword: passwordField('New password'),
 });
 
 module.exports = {
     registerSchema,
     loginSchema,
     resetPasswordSchema,
-    newPasswordSchema
+    newPasswordSchema,
 };

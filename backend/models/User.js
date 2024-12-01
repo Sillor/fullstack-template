@@ -45,7 +45,7 @@ const User = sequelize.define("User", {
 // Synchronize the database
 (async () => {
     try {
-        await sequelize.sync({ alter: true }); // Adjust schema to match model if necessary
+        await sequelize.sync({ alter: true });
         console.log("Database synced and User table created");
     } catch (err) {
         console.error("Error syncing database:", err);
