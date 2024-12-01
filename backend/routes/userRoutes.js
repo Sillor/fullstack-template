@@ -2,7 +2,8 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { User } = require("../models/User");
-const sendResetMail = require('../utils/mailer');
+const sendResetMail = require('../utils/mailer/mailer');
+const { registerSchema, loginSchema, resetPasswordSchema, newPasswordSchema } = require('../utils/validationSchemas');
 
 const router = express.Router();
 
@@ -64,17 +65,12 @@ const router = express.Router();
  *         description: Internal server error.
  */
 router.post("/register", async (req, res) => {
+    const { error } = registerSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+
     const { username, password, email } = req.body;
-
-    if (!username || !password || !email) {
-        return res.status(400).json({ message: "Username, password, and email are required." });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email format." });
-    }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -111,11 +107,12 @@ router.post("/register", async (req, res) => {
  *         description: Internal server error.
  */
 router.post("/login", async (req, res) => {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required." });
+    const { error } = loginSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
     }
+
+    const { username, password } = req.body;
 
     try {
         const user = await User.findOne({ where: { username } });
@@ -216,11 +213,12 @@ router.get("/profile", verifyToken, async (req, res) => {
  *         description: Internal server error.
  */
 router.post("/reset-password", async (req, res) => {
-    const { email } = req.body;
-
-    if (!email) {
-        return res.status(400).json({ message: "Email address is required." });
+    const { error } = resetPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
     }
+
+    const { email } = req.body;
 
     try {
         const user = await User.findOne({ where: { email } });
@@ -241,11 +239,12 @@ router.post("/reset-password", async (req, res) => {
 });
 
 router.patch("/reset-password", async (req, res) => {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-        return res.status(400).json({ message: "Token and new password are required." });
+    const { error } = newPasswordSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
     }
+
+    const { token, newPassword } = req.body;
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -267,7 +266,6 @@ router.patch("/reset-password", async (req, res) => {
         return res.status(500).json({ message: "Internal server error." });
     }
 });
-
 
 /**
  * Middleware function to verify JWT token from the request headers.
