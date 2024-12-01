@@ -1,8 +1,5 @@
 const express = require("express");
-const { User } = require("../models/User");
-const { verifyToken } = require("../middleware/auth");
-
-const router = express.Router();
+const { User } = require("../../models/User");
 
 /**
  * @swagger
@@ -76,7 +73,7 @@ const router = express.Router();
  *                   type: string
  *                   example: Internal server error.
  */
-router.get("/profile", verifyToken, async (req, res) => {
+exports.getProfile = async (req, res) => {
     try {
         const user = await User.findByPk(req.userId, { attributes: ["id", "username", "email"] });
         if (!user) {
@@ -88,6 +85,4 @@ router.get("/profile", verifyToken, async (req, res) => {
         console.error("Error fetching profile:", error);
         return res.status(500).json({ message: "Internal server error." });
     }
-});
-
-module.exports = router;
+};

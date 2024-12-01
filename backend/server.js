@@ -2,8 +2,8 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const { sequelize } = require("./models/User");
-const userRoutes = require("./routes/userRoutes");
-const authRoutes = require("./routes/authRoutes");
+const usersRouter = require("./routes/users/router");
+const authRouter = require("./routes/auth/router");
 const swaggerDocs = require("./routes/swaggerDocs");
 
 // Load environment variables
@@ -23,8 +23,8 @@ sequelize
 
 // Routes
 app.use("/docs", swaggerDocs);
-app.use("/api/users", userRoutes);
-app.use("/api/auth", authRoutes);
+app.use("/api/users", usersRouter);
+app.use("/api/auth", authRouter);
 
 // Start server
 const PORT = process.env.PORT || 3000;

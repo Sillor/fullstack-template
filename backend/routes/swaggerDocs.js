@@ -22,8 +22,37 @@ const swaggerOptions = {
                 description: "Development server",
             },
         ],
+        components: {
+            securitySchemes: {
+                BearerAuth: {
+                    type: "http",
+                    scheme: "bearer",
+                    bearerFormat: "JWT",
+                },
+            },
+            schemas: {
+                User: {
+                    type: "object",
+                    required: ["username", "password"],
+                    properties: {
+                        username: {
+                            type: "string",
+                            description: "Unique username",
+                        },
+                        email: {
+                            type: "string",
+                            description: "User's email",
+                        },
+                        password: {
+                            type: "string",
+                            description: "User's password",
+                        },
+                    },
+                },
+            },
+        },
     },
-    apis: ["./routes/*.js"],
+    apis: ["./routes/**/*.js"],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
