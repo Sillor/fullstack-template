@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { User } = require("../models/User");
+const sendResetMail = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -23,6 +24,9 @@ const router = express.Router();
  *         username:
  *           type: string
  *           description: Unique username
+ *         email:
+ *           type: string
+ *           description: User's email
  *         password:
  *           type: string
  *           description: User's password
@@ -33,36 +37,53 @@ const router = express.Router();
  * /register:
  *   post:
  *     summary: Registers a new user.
- *     description: Creates a user with a unique username and hashed password.
+ *     description: Creates a user with a unique username, hashed password, and valid email.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/User'
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *             required:
+ *               - username
+ *               - password
+ *               - email
  *     responses:
  *       201:
  *         description: User successfully registered.
  *       400:
- *         description: Username already exists or invalid input.
+ *         description: Username, email already exists, or invalid input.
  *       500:
  *         description: Internal server error.
  */
 router.post("/register", async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required." });
+    if (!username || !password || !email) {
+        return res.status(400).json({ message: "Username, password, and email are required." });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format." });
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await User.create({ username, password: hashedPassword });
+        const newUser = await User.create({ username, password: hashedPassword, email });
 
         return res.status(201).json({ message: "User registered successfully.", userId: newUser.id });
     } catch (error) {
         if (error.name === "SequelizeUniqueConstraintError") {
-            return res.status(400).json({ message: "Username already exists." });
+            return res.status(400).json({ message: "Username or email already exists." });
         }
         console.error("Error during registration:", error);
         return res.status(500).json({ message: "Internal server error." });
@@ -135,7 +156,7 @@ router.post("/login", async (req, res) => {
  */
 router.get("/profile", verifyToken, async (req, res) => {
     try {
-        const user = await User.findByPk(req.userId, { attributes: ["id", "username"] });
+        const user = await User.findByPk(req.userId, { attributes: ["id", "username", "email"] });
         if (!user) {
             return res.status(404).json({ message: "User not found." });
         }
@@ -147,6 +168,117 @@ router.get("/profile", verifyToken, async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /reset-password:
+ *   post:
+ *     summary: Initiates a password reset process.
+ *     description: Sends a password reset email with a unique link to the user.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User's registered email address.
+ *     responses:
+ *       200:
+ *         description: Reset link sent successfully.
+ *       404:
+ *         description: Email not found.
+ *       500:
+ *         description: Internal server error.
+ *   patch:
+ *     summary: Resets the password using a reset token.
+ *     description: Updates the user's password if the provided reset token is valid.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Token received via email.
+ *               newPassword:
+ *                 type: string
+ *                 description: New password for the user.
+ *     responses:
+ *       200:
+ *         description: Password reset successfully.
+ *       400:
+ *         description: Invalid token or missing input.
+ *       500:
+ *         description: Internal server error.
+ */
+router.post("/reset-password", async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: "Email address is required." });
+    }
+
+    try {
+        const user = await User.findOne({ where: { email } });
+        if (!user) {
+            return res.status(404).json({ message: "Email not found." });
+        }
+
+        const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+        await sendResetMail(email, "Password Reset Request", user.username, resetLink);
+
+        return res.status(200).json({ message: "Reset link sent successfully." });
+    } catch (error) {
+        console.error("Error during password reset request:", error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+router.patch("/reset-password", async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token and new password are required." });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) {
+            return res.status(400).json({ message: "Invalid token." });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await user.update({ password: hashedPassword });
+
+        return res.status(200).json({ message: "Password reset successfully." });
+    } catch (error) {
+        if (error.name === "TokenExpiredError") {
+            return res.status(400).json({ message: "Token expired." });
+        }
+        console.error("Error during password reset:", error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+
+/**
+ * Middleware function to verify JWT token from the request headers.
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ * @param {Function} next - Express next middleware function.
+ * @returns {Object} - Returns a 403 status with a message if no token is provided.
+ *                      Returns a 401 status with a message if the token is invalid.
+ *                      Calls the next middleware function if the token is valid.
+ */
 function verifyToken(req, res, next) {
     const authHeader = req.headers["authorization"];
     if (!authHeader) {

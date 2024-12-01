@@ -17,6 +17,7 @@ const sequelize = new Sequelize(
 
 // The User model represents a user in the application with the following attributes:
 // - id: a unique identifier for the user
+// - email: the user's unique email
 // - username: the user's unique username
 // - password: the user's password
 
@@ -25,6 +26,11 @@ const User = sequelize.define("User", {
         type: DataTypes.UUID,
         defaultValue: Sequelize.UUIDV4,
         primaryKey: true,
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
     },
     username: {
         type: DataTypes.STRING,
